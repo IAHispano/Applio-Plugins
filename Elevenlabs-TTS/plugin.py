@@ -130,14 +130,18 @@ def run_tts_script(
     output_rvc_path,
     pth_file,
     index_path,
+    api_key,
 ):
     infer_script_path = os.path.join("rvc", "infer", "infer.py")
 
     if os.path.exists(output_tts_path):
         os.remove(output_tts_path)
+
+    if api_key:
+        elevenlabs.set_api_key(api_key)
     
     tts = elevenlabs.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
-    elevenlabs.save(tts,output_tts_path)
+    elevenlabs.save(tts, output_tts_path)
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
@@ -212,6 +216,13 @@ def applio_plugin():
         label=i18n("Text to Synthesize"),
         placeholder=i18n("Enter text to synthesize"),
         lines=3,
+    )
+
+    api_key = gr.Textbox(
+        label=i18n("Optional API Key"),
+        placeholder=i18n("Enter your API key (This is optional if you make a lot of requests)"),
+        value="",
+        interactive=True,
     )
 
     txt_file = gr.File(
@@ -313,6 +324,7 @@ def applio_plugin():
             output_rvc_path,
             model_file,
             index_file,
+            api_key,
         ],
         outputs=[vc_output1, vc_output2],
     )
