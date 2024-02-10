@@ -1,5 +1,8 @@
 # Applio Plugins
 
+> [!IMPORTANT]
+> We've just launched our new plugin system and we're looking for your assistance in creating amazing plugins! Below, you'll find all the information you need to get started.
+
 Welcome to **Applio Plugins**, a repository specifically designed for Applio plugins.
 
 If you're not familiar with Applio, check it out on our incredible webpage, [applio.org](https://applio.org), or visit our [GitHub repository](https://github.com/IAHispano/Applio).
