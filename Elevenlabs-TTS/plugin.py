@@ -218,6 +218,7 @@ def applio_plugin():
         lines=3,
     )
 
+    gr.Markdown("If you use this feature too much, make sure to grab an API key from ElevenLabs. Simply visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/text-to-speech#authentication")
     api_key = gr.Textbox(
         label=i18n("Optional API Key"),
         placeholder=i18n("Enter your API key (This is optional if you make a lot of requests)"),
