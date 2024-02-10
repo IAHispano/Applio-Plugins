@@ -136,7 +136,7 @@ def run_tts_script(
     if os.path.exists(output_tts_path):
         os.remove(output_tts_path)
     
-    tts = elevenlabs.generate(text=tts_text, voice=tts_voice)
+    tts = elevenlabs.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
     elevenlabs.save(tts,output_tts_path)
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
