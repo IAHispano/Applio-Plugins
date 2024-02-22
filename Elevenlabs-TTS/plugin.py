@@ -148,15 +148,19 @@ def run_tts_script(
     command_infer = [
         "python",
         infer_script_path,
-        str(f0up_key),
-        str(filter_radius),
-        str(index_rate),
-        str(hop_length),
-        f0method,
-        output_tts_path,
-        output_rvc_path,
-        pth_file,
-        index_path,
+        *map(str, [
+            f0up_key,
+            filter_radius,
+            index_rate,
+            hop_length,
+            f0method,
+            output_tts_path,
+            output_rvc_path,
+            pth_file,
+            index_path,
+            "False",
+            "False",
+        ]),
     ]
     subprocess.run(command_infer)
     return f"Text {tts_text} synthesized successfully.", output_rvc_path
