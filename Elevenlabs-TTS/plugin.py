@@ -121,15 +121,21 @@ def process_input(file_path):
 def run_tts_script(
     tts_text,
     tts_voice,
-    f0up_key,
+    pitch,
     filter_radius,
     index_rate,
+    rms_mix_rate,
+    protect,
     hop_length,
     f0method,
     output_tts_path,
     output_rvc_path,
-    pth_file,
-    index_path,
+    model_file,
+    index_file,
+    split_audio,
+    autotune,
+    clean_audio,
+    clean_strength,
     api_key,
 ):
     infer_script_path = os.path.join("rvc", "infer", "infer.py")
@@ -147,20 +153,27 @@ def run_tts_script(
 
     command_infer = [
         "python",
-        infer_script_path,
-        *map(str, [
-            f0up_key,
-            filter_radius,
-            index_rate,
-            hop_length,
-            f0method,
-            output_tts_path,
-            output_rvc_path,
-            pth_file,
-            index_path,
-            "False",
-            "False",
-        ]),
+        *map(
+            str,
+            [
+                infer_script_path,
+                pitch,
+                filter_radius,
+                index_rate,
+                hop_length,
+                f0method,
+                output_tts_path,
+                output_rvc_path,
+                model_file,
+                index_file,
+                split_audio,
+                autotune,
+                rms_mix_rate,
+                protect,
+                clean_audio,
+                clean_strength,
+            ],
+        ),
     ]
     subprocess.run(command_infer)
     return f"Text {tts_text} synthesized successfully.", output_rvc_path
@@ -177,6 +190,7 @@ def applio_plugin():
         with gr.Row():
             model_file = gr.Dropdown(
                 label=i18n("Voice Model"),
+                info=i18n("Select the voice model to use for the conversion."),
                 choices=sorted(names, key=lambda path: os.path.getsize(path)),
                 interactive=True,
                 value=default_weight,
@@ -185,6 +199,7 @@ def applio_plugin():
             best_default_index_path = match_index(model_file.value)
             index_file = gr.Dropdown(
                 label=i18n("Index File"),
+                info=i18n("Select the index file to use for the conversion."),
                 choices=get_indexes(),
                 value=best_default_index_path,
                 interactive=True,
@@ -211,6 +226,7 @@ def applio_plugin():
 
     tts_voice = gr.Dropdown(
         label=i18n("TTS Voices"),
+        info=i18n("Select the TTS voice to use for the conversion."),
         choices=voice_names,
         interactive=True,
         value=None,
@@ -218,16 +234,17 @@ def applio_plugin():
 
     tts_text = gr.Textbox(
         label=i18n("Text to Synthesize"),
+        info=i18n("Enter the text to synthesize."),
         placeholder=i18n("Enter text to synthesize"),
         lines=3,
     )
 
-    gr.Markdown("If you use this feature too much, make sure to grab an API key from ElevenLabs. Simply visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/text-to-speech#authentication")
     api_key = gr.Textbox(
         label=i18n("Optional API Key"),
-        placeholder=i18n("Enter your API key (This is optional if you make a lot of requests)"),
+        placeholder=i18n("Enter your API key (This is necessary if you make a lot of requests)"),
         value="",
         interactive=True,
+        info="If you use this feature too much, make sure to grab an API key from ElevenLabs. Simply visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/text-to-speech#authentication",
     )
 
     txt_file = gr.File(
@@ -243,27 +260,67 @@ def applio_plugin():
                 value=os.path.join(now_dir, "assets", "audios", "tts_output.wav"),
                 interactive=True,
             )
-
             output_rvc_path = gr.Textbox(
                 label=i18n("Output Path for RVC Audio"),
                 placeholder=i18n("Enter output path"),
                 value=os.path.join(now_dir, "assets", "audios", "tts_rvc_output.wav"),
                 interactive=True,
             )
-
+            split_audio = gr.Checkbox(
+                label=i18n("Split Audio"),
+                info=i18n(
+                    "Split the audio into chunks for inference to obtain better results in some cases."
+                ),
+                visible=False,
+                value=False,
+                interactive=True,
+            )
+            autotune = gr.Checkbox(
+                label=i18n("Autotune"),
+                info=i18n(
+                    "Apply a soft autotune to your inferences, recommended for singing conversions."
+                ),
+                visible=False,
+                value=False,
+                interactive=True,
+            )
+            clean_audio = gr.Checkbox(
+                label=i18n("Clean Audio"),
+                info=i18n(
+                    "Clean your audio output using noise detection algorithms, recommended for speaking audios."
+                ),
+                visible=True,
+                value=True,
+                interactive=True,
+            )
+            clean_strength = gr.Slider(
+                minimum=0,
+                maximum=1,
+                label=i18n("Clean Strength"),
+                info=i18n(
+                    "Set the clean-up level to the audio you want, the more you increase it the more it will clean up, but it is possible that the audio will be more compressed."
+                ),
+                visible=True,
+                value=0.5,
+                interactive=True,
+            )
             pitch = gr.Slider(
                 minimum=-24,
                 maximum=24,
                 step=1,
                 label=i18n("Pitch"),
+                info=i18n(
+                    "Set the pitch of the audio, the higher the value, the higher the pitch."
+                ),
                 value=0,
                 interactive=True,
             )
             filter_radius = gr.Slider(
                 minimum=0,
                 maximum=7,
-                label=i18n(
-                    "If >=3: apply median filtering to the harvested pitch results. The value represents the filter radius and can reduce breathiness"
+                label=i18n("Filter Radius"),
+                info=i18n(
+                    "If the number is greater than or equal to three, employing median filtering on the collected tone results has the potential to decrease respiration."
                 ),
                 value=3,
                 step=1,
@@ -273,7 +330,30 @@ def applio_plugin():
                 minimum=0,
                 maximum=1,
                 label=i18n("Search Feature Ratio"),
+                info=i18n(
+                    "Influence exerted by the index file; a higher value corresponds to greater influence. However, opting for lower values can help mitigate artifacts present in the audio."
+                ),
                 value=0.75,
+                interactive=True,
+            )
+            rms_mix_rate = gr.Slider(
+                minimum=0,
+                maximum=1,
+                label=i18n("Volume Envelope"),
+                info=i18n(
+                    "Substitute or blend with the volume envelope of the output. The closer the ratio is to 1, the more the output envelope is employed."
+                ),
+                value=1,
+                interactive=True,
+            )
+            protect = gr.Slider(
+                minimum=0,
+                maximum=0.5,
+                label=i18n("Protect Voiceless Consonants"),
+                info=i18n(
+                    "Safeguard distinct consonants and breathing sounds to prevent electro-acoustic tearing and other artifacts. Pulling the parameter to its maximum value of 0.5 offers comprehensive protection. However, reducing this value might decrease the extent of protection while potentially mitigating the indexing effect."
+                ),
+                value=0.5,
                 interactive=True,
             )
             hop_length = gr.Slider(
@@ -281,23 +361,31 @@ def applio_plugin():
                 maximum=512,
                 step=1,
                 label=i18n("Hop Length"),
+                info=i18n(
+                    "Denotes the duration it takes for the system to transition to a significant pitch change. Smaller hop lengths require more time for inference but tend to yield higher pitch accuracy."
+                ),
                 value=128,
                 interactive=True,
             )
-        with gr.Column():
-            f0method = gr.Radio(
-                label=i18n("Pitch extraction algorithm"),
-                choices=[
-                    "pm",
-                    "harvest",
-                    "dio",
-                    "crepe",
-                    "crepe-tiny",
-                    "rmvpe",
-                ],
-                value="rmvpe",
-                interactive=True,
-            )
+            with gr.Column():
+                f0method = gr.Radio(
+                    label=i18n("Pitch extraction algorithm"),
+                    info=i18n(
+                        "Pitch extraction algorithm to use for the audio conversion. The default algorithm is rmvpe, which is recommended for most cases."
+                    ),
+                    choices=[
+                        "pm",
+                        "harvest",
+                        "dio",
+                        "crepe",
+                        "crepe-tiny",
+                        "rmvpe",
+                        "fcpe",
+                        "hybrid[rmvpe+fcpe]",
+                    ],
+                    value="rmvpe",
+                    interactive=True,
+                )
 
     convert_button1 = gr.Button(i18n("Convert"))
 
@@ -323,12 +411,18 @@ def applio_plugin():
             pitch,
             filter_radius,
             index_rate,
+            rms_mix_rate,
+            protect,
             hop_length,
             f0method,
             output_tts_path,
             output_rvc_path,
             model_file,
             index_file,
+            split_audio,
+            autotune,
+            clean_audio,
+            clean_strength,
             api_key,
         ],
         outputs=[vc_output1, vc_output2],
