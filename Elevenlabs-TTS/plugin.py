@@ -136,6 +136,7 @@ def run_tts_script(
     autotune,
     clean_audio,
     clean_strength,
+    export_format,
     api_key,
 ):
     infer_script_path = os.path.join("rvc", "infer", "infer.py")
@@ -172,6 +173,7 @@ def run_tts_script(
                 protect,
                 clean_audio,
                 clean_strength,
+                export_format,
             ],
         ),
     ]
@@ -264,6 +266,13 @@ def applio_plugin():
                 label=i18n("Output Path for RVC Audio"),
                 placeholder=i18n("Enter output path"),
                 value=os.path.join(now_dir, "assets", "audios", "tts_rvc_output.wav"),
+                interactive=True,
+            )
+            export_format = gr.Radio(
+                label=i18n("Export Format"),
+                info=i18n("Select the format to export the audio."),
+                choices=["WAV", "MP3", "FLAC", "OGG", "M4A"],
+                value="WAV",
                 interactive=True,
             )
             split_audio = gr.Checkbox(
@@ -423,6 +432,7 @@ def applio_plugin():
             autotune,
             clean_audio,
             clean_strength,
+            export_format,
             api_key,
         ],
         outputs=[vc_output1, vc_output2],
