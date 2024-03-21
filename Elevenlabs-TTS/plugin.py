@@ -6,7 +6,8 @@ import subprocess
 
 from assets.i18n.i18n import I18nAuto
 
-import elevenlabs
+from elevenlabs.client import ElevenLabs
+client = ElevenLabs()
 
 i18n = I18nAuto()
 
@@ -145,10 +146,12 @@ def run_tts_script(
         os.remove(output_tts_path)
 
     if api_key:
-        elevenlabs.set_api_key(api_key)
+        client = ElevenLabs(
+            api_key,
+        )
     
-    tts = elevenlabs.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
-    elevenlabs.save(tts, output_tts_path)
+    tts = client.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
+    client.save(tts, output_tts_path)
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
@@ -223,8 +226,12 @@ def applio_plugin():
                 outputs=[index_file],
             )
 
-    voices = elevenlabs.voices()
-    voice_names = [voice.name for voice in voices]
+    response = client.voices.get_all()
+    if hasattr(response, 'voices') and isinstance(response.voices, list):
+        voices_list = response.voices
+        voice_names = [voice.name for voice in voices_list]
+    else:
+        print("Unexpected response format or missing data.")
 
     tts_voice = gr.Dropdown(
         label=i18n("TTS Voices"),
