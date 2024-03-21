@@ -7,6 +7,7 @@ import subprocess
 from assets.i18n.i18n import I18nAuto
 
 from elevenlabs.client import ElevenLabs
+from elevenlabs import save
 client = ElevenLabs()
 
 i18n = I18nAuto()
@@ -153,7 +154,7 @@ def run_tts_script(
         client = ElevenLabs()
     
     tts = client.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
-    client.save(tts, output_tts_path)
+    save(tts, output_tts_path)
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
