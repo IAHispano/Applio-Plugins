@@ -149,6 +149,8 @@ def run_tts_script(
         client = ElevenLabs(
             api_key,
         )
+    else:
+        client = ElevenLabs()
     
     tts = client.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
     client.save(tts, output_tts_path)
