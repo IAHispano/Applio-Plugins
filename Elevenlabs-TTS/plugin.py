@@ -148,7 +148,7 @@ def run_tts_script(
 
     if api_key:
         client = ElevenLabs(
-            api_key,
+            api_key=api_key,
         )
     else:
         client = ElevenLabs()
