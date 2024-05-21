@@ -15,6 +15,8 @@ i18n = I18nAuto()
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
+from rvc.infer.infer import infer_pipeline
+
 model_root = os.path.join(now_dir, "logs")
 model_root_relative = os.path.relpath(model_root, now_dir)
 
@@ -139,10 +141,10 @@ def run_tts_script(
     clean_audio,
     clean_strength,
     export_format,
+    embedder_model,
+    upscale_audio,
     api_key,
 ):
-    infer_script_path = os.path.join("rvc", "infer", "infer.py")
-
     if os.path.exists(output_tts_path):
         os.remove(output_tts_path)
 
@@ -158,33 +160,30 @@ def run_tts_script(
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
-    command_infer = [
-        "python",
-        *map(
-            str,
-            [
-                infer_script_path,
-                pitch,
-                filter_radius,
-                index_rate,
-                hop_length,
-                f0method,
-                output_tts_path,
-                output_rvc_path,
-                model_file,
-                index_file,
-                split_audio,
-                autotune,
-                rms_mix_rate,
-                protect,
-                clean_audio,
-                clean_strength,
-                export_format,
-            ],
-        ),
-    ]
-    subprocess.run(command_infer)
-    return f"Text {tts_text} synthesized successfully.", output_rvc_path
+    infer_pipeline(
+        pitch,
+        filter_radius,
+        index_rate,
+        rms_mix_rate,
+        protect,
+        hop_length,
+        f0method,
+        output_tts_path,
+        output_rvc_path,
+        model_file,
+        index_file,
+        split_audio,
+        autotune,
+        clean_audio,
+        clean_strength,
+        export_format,
+        embedder_model,
+        upscale_audio,
+    )
+
+    return f"Text {tts_text} synthesized successfully.", output_rvc_path.replace(
+        ".wav", f".{export_format.lower()}"
+    )
 
 
 def applio_plugin():
@@ -308,7 +307,7 @@ def applio_plugin():
                 info=i18n(
                     "Clean your audio output using noise detection algorithms, recommended for speaking audios."
                 ),
-                visible=True,
+                visible=False,
                 value=True,
                 interactive=True,
             )
@@ -319,8 +318,17 @@ def applio_plugin():
                 info=i18n(
                     "Set the clean-up level to the audio you want, the more you increase it the more it will clean up, but it is possible that the audio will be more compressed."
                 ),
-                visible=True,
+                visible=False,
                 value=0.5,
+                interactive=True,
+            )
+            upscale_audio = gr.Checkbox(
+                label=i18n("Upscale Audio"),
+                info=i18n(
+                    "Upscale the audio to a higher quality, recommended for low-quality audios. (It could take longer to process the audio)"
+                ),
+                visible=False,
+                value=False,
                 interactive=True,
             )
             pitch = gr.Slider(
@@ -386,25 +394,31 @@ def applio_plugin():
                 value=128,
                 interactive=True,
             )
-            with gr.Column():
-                f0method = gr.Radio(
-                    label=i18n("Pitch extraction algorithm"),
-                    info=i18n(
-                        "Pitch extraction algorithm to use for the audio conversion. The default algorithm is rmvpe, which is recommended for most cases."
-                    ),
-                    choices=[
-                        "pm",
-                        "harvest",
-                        "dio",
-                        "crepe",
-                        "crepe-tiny",
-                        "rmvpe",
-                        "fcpe",
-                        "hybrid[rmvpe+fcpe]",
-                    ],
-                    value="rmvpe",
-                    interactive=True,
-                )
+            f0method = gr.Radio(
+                label=i18n("Pitch extraction algorithm"),
+                info=i18n(
+                    "Pitch extraction algorithm to use for the audio conversion. The default algorithm is rmvpe, which is recommended for most cases."
+                ),
+                choices=[
+                    "pm",
+                    "harvest",
+                    "dio",
+                    "crepe",
+                    "crepe-tiny",
+                    "rmvpe",
+                    "fcpe",
+                    "hybrid[rmvpe+fcpe]",
+                ],
+                value="rmvpe",
+                interactive=True,
+            )
+            embedder_model = gr.Radio(
+                label=i18n("Embedder Model"),
+                info=i18n("Model used for learning speaker embedding."),
+                choices=["hubert", "contentvec"],
+                value="hubert",
+                interactive=True,
+            )
 
     convert_button1 = gr.Button(i18n("Convert"))
 
@@ -443,6 +457,8 @@ def applio_plugin():
             clean_audio,
             clean_strength,
             export_format,
+            embedder_model,
+            upscale_audio,
             api_key,
         ],
         outputs=[vc_output1, vc_output2],
