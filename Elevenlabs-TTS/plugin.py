@@ -8,6 +8,7 @@ from assets.i18n.i18n import I18nAuto
 
 from elevenlabs.client import ElevenLabs
 from elevenlabs import save
+
 client = ElevenLabs()
 
 i18n = I18nAuto()
@@ -15,7 +16,7 @@ i18n = I18nAuto()
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
-from rvc.infer.infer import infer_pipeline
+from rvc.infer.infer import VoiceConverter
 
 model_root = os.path.join(now_dir, "logs")
 model_root_relative = os.path.relpath(model_root, now_dir)
@@ -36,6 +37,7 @@ indexes_list = [
     for name in files
     if name.endswith(".index") and "trained" not in name
 ]
+
 
 def change_choices():
     names = [
@@ -73,9 +75,7 @@ def get_indexes():
 
 def match_index(model_file: str) -> tuple:
     model_files_trip = re.sub(r"\.pth|\.onnx$", "", model_file)
-    model_file_name = os.path.split(model_files_trip)[
-        -1
-    ]
+    model_file_name = os.path.split(model_files_trip)[-1]
 
     if re.match(r".+_e\d+_s\d+$", model_file_name):
         base_model_name = model_file_name.rsplit("_", 2)[0]
@@ -114,6 +114,7 @@ def match_index(model_file: str) -> tuple:
         return best_match_index_path
 
     return ""
+
 
 def process_input(file_path):
     with open(file_path, "r") as file:
@@ -154,13 +155,15 @@ def run_tts_script(
         )
     else:
         client = ElevenLabs()
-    
-    tts = client.generate(text=tts_text, voice=tts_voice, model="eleven_multilingual_v2")
+
+    tts = client.generate(
+        text=tts_text, voice=tts_voice, model="eleven_multilingual_v2"
+    )
     save(tts, output_tts_path)
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
-    infer_pipeline(
+    VoiceConverter.infer_pipeline(
         pitch,
         filter_radius,
         index_rate,
@@ -187,11 +190,13 @@ def run_tts_script(
 
 
 def applio_plugin():
-    gr.Markdown("""
+    gr.Markdown(
+        """
     ## Elevenlabs TTS Plugin
     This plugin allows you to use the Elevenlabs TTS model to synthesize text into speech. Remeber that elevenlabs is a multilingual TTS model, so you can use it to synthesize text in different languages.
     Languages supported by the model: Chinese, Korean, Dutch, Turkish, Swedish, Indonesian, Filipino, Japanese, Ukrainian, Greek, Czech, Finnish, Romanian, Russian, Danish, Bulgarian, Malay, Slovak, Croatian, Classic Arabic, Tamil, English, Polish, German, Spanish, French, Italian, Hindi and Portuguese.
-    """)
+    """
+    )
     default_weight = random.choice(names) if names else ""
     with gr.Row():
         with gr.Row():
@@ -229,7 +234,7 @@ def applio_plugin():
             )
 
     response = client.voices.get_all()
-    if hasattr(response, 'voices') and isinstance(response.voices, list):
+    if hasattr(response, "voices") and isinstance(response.voices, list):
         voices_list = response.voices
         voice_names = [voice.name for voice in voices_list]
     else:
@@ -252,7 +257,9 @@ def applio_plugin():
 
     api_key = gr.Textbox(
         label=i18n("Optional API Key"),
-        placeholder=i18n("Enter your API key (This is necessary if you make a lot of requests)"),
+        placeholder=i18n(
+            "Enter your API key (This is necessary if you make a lot of requests)"
+        ),
         value="",
         interactive=True,
         info="If you use this feature too much, make sure to grab an API key from ElevenLabs. Simply visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/text-to-speech#authentication",
@@ -312,7 +319,7 @@ def applio_plugin():
                 interactive=True,
             )
             clean_strength = gr.Slider(
-                minimum=0,
+                minimumum=0,
                 maximum=1,
                 label=i18n("Clean Strength"),
                 info=i18n(
@@ -332,7 +339,7 @@ def applio_plugin():
                 interactive=True,
             )
             pitch = gr.Slider(
-                minimum=-24,
+                minimumum=-24,
                 maximum=24,
                 step=1,
                 label=i18n("Pitch"),
@@ -343,7 +350,7 @@ def applio_plugin():
                 interactive=True,
             )
             filter_radius = gr.Slider(
-                minimum=0,
+                minimumum=0,
                 maximum=7,
                 label=i18n("Filter Radius"),
                 info=i18n(
@@ -354,7 +361,7 @@ def applio_plugin():
                 interactive=True,
             )
             index_rate = gr.Slider(
-                minimum=0,
+                minimumum=0,
                 maximum=1,
                 label=i18n("Search Feature Ratio"),
                 info=i18n(
@@ -364,7 +371,7 @@ def applio_plugin():
                 interactive=True,
             )
             rms_mix_rate = gr.Slider(
-                minimum=0,
+                minimumum=0,
                 maximum=1,
                 label=i18n("Volume Envelope"),
                 info=i18n(
@@ -374,7 +381,7 @@ def applio_plugin():
                 interactive=True,
             )
             protect = gr.Slider(
-                minimum=0,
+                minimumum=0,
                 maximum=0.5,
                 label=i18n("Protect Voiceless Consonants"),
                 info=i18n(
@@ -384,7 +391,7 @@ def applio_plugin():
                 interactive=True,
             )
             hop_length = gr.Slider(
-                minimum=1,
+                minimumum=1,
                 maximum=512,
                 step=1,
                 label=i18n("Hop Length"),
