@@ -1,0 +1,15 @@
+six>=1.16
+samplerate==0.1.0
+pyyaml
+ml_collections
+
+onnx2torch>=1.5
+onnx>=1.14
+onnxruntime
+onnxruntime_gpu==1.15.1
+
+julius>=0.2
+diffq>=0.2
+
+beartype==0.18.5
+rotary-embedding-torch==0.6.1
