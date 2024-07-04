@@ -195,7 +195,7 @@ def main():
 
     logger.setLevel(log_level)
 
-    from uvr.separator import Separator
+    from tabs.plugins.installed.UVR.uvr.separator import Separator
 
     if args.env_info:
         separator = Separator()
