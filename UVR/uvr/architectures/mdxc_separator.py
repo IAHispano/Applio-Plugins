@@ -7,11 +7,11 @@ from tqdm import tqdm
 from ml_collections import ConfigDict
 from scipy import signal
 
-from uvr.common_separator import CommonSeparator
-from uvr.uvr_lib_v5 import spec_utils
-from uvr.uvr_lib_v5.tfc_tdf_v3 import TFC_TDF_net
-from uvr.uvr_lib_v5.mel_band_roformer import MelBandRoformer
-from uvr.uvr_lib_v5.bs_roformer import BSRoformer
+from tabs.plugins.installed.UVR.uvr.common_separator import CommonSeparator
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5 import spec_utils
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.tfc_tdf_v3 import TFC_TDF_net
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.mel_band_roformer import MelBandRoformer
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.bs_roformer import BSRoformer
 
 
 class MDXCSeparator(CommonSeparator):

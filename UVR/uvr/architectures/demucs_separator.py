@@ -3,11 +3,11 @@ import sys
 from pathlib import Path
 import torch
 import numpy as np
-from uvr.common_separator import CommonSeparator
-from uvr.uvr_lib_v5.demucs.apply import apply_model, demucs_segments
-from uvr.uvr_lib_v5.demucs.hdemucs import HDemucs
-from uvr.uvr_lib_v5.demucs.pretrained import get_model as get_demucs_model
-from uvr.uvr_lib_v5 import spec_utils
+from tabs.plugins.installed.UVR.uvr.common_separator import CommonSeparator
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.demucs.apply import apply_model, demucs_segments
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.demucs.hdemucs import HDemucs
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.demucs.pretrained import get_model as get_demucs_model
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5 import spec_utils
 
 DEMUCS_4_SOURCE = ["drums", "bass", "other", "vocals"]
 
@@ -147,16 +147,15 @@ class DemucsSeparator(CommonSeparator):
             self.logger.debug(
                 f"Processing source array, source length is {source_length}"
             )
-            match source_length:
-                case 2:
-                    self.logger.debug("Setting source map to 2-stem...")
-                    self.demucs_source_map = DEMUCS_2_SOURCE_MAPPER
-                case 6:
-                    self.logger.debug("Setting source map to 6-stem...")
-                    self.demucs_source_map = DEMUCS_6_SOURCE_MAPPER
-                case _:
-                    self.logger.debug("Setting source map to 4-stem...")
-                    self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
+            if source_length == 2:
+                self.logger.debug("Setting source map to 2-stem...")
+                self.demucs_source_map = DEMUCS_2_SOURCE_MAPPER
+            elif source_length == 6:
+                self.logger.debug("Setting source map to 6-stem...")
+                self.demucs_source_map = DEMUCS_6_SOURCE_MAPPER
+            else:
+                self.logger.debug("Setting source map to 4-stem...")
+                self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
 
         self.logger.debug("Processing for all stems...")
         for stem_name, stem_value in self.demucs_source_map.items():

@@ -8,9 +8,9 @@ import onnxruntime as ort
 import numpy as np
 import onnx2torch
 from tqdm import tqdm
-from uvr.uvr_lib_v5 import spec_utils
-from uvr.uvr_lib_v5.stft import STFT
-from uvr.common_separator import CommonSeparator
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5 import spec_utils
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.stft import STFT
+from tabs.plugins.installed.UVR.uvr.common_separator import CommonSeparator
 
 
 class MDXSeparator(CommonSeparator):
@@ -244,7 +244,7 @@ class MDXSeparator(CommonSeparator):
             )
             output_files.append(self.primary_stem_output_path)
 
-        # Not yet implemented from UVR features:
+        # Not yet implemented from tabs.plugins.installed.UVR.uvr features:
         # self.process_vocal_split_chain(secondary_sources)
         # self.logger.debug("Vocal split chain processed.")
 

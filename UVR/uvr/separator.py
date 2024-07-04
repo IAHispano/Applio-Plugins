@@ -728,7 +728,7 @@ class Separator:
         )
 
         module_name, class_name = separator_classes[model_type].split(".")
-        module = importlib.import_module(f"uvr.architectures.{module_name}")
+        module = importlib.import_module(f"tabs.plugins.installed.UVR.uvr.architectures.{module_name}")
         separator_class = getattr(module, class_name)
 
         self.logger.debug(

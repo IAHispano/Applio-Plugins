@@ -7,7 +7,7 @@ import numpy as np
 import librosa
 import torch
 from pydub import AudioSegment
-from uvr.uvr_lib_v5 import spec_utils
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5 import spec_utils
 
 
 class CommonSeparator:

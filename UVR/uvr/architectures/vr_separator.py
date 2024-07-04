@@ -11,11 +11,13 @@ from tqdm import tqdm
 # Check if we really need the rerun_mp3 function, remove if not
 import audioread
 
-from uvr.common_separator import CommonSeparator
-from uvr.uvr_lib_v5 import spec_utils
-from uvr.uvr_lib_v5.vr_network import nets
-from uvr.uvr_lib_v5.vr_network import nets_new
-from uvr.uvr_lib_v5.vr_network.model_param_init import ModelParameters
+from tabs.plugins.installed.UVR.uvr.common_separator import CommonSeparator
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5 import spec_utils
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.vr_network import nets
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.vr_network import nets_new
+from tabs.plugins.installed.UVR.uvr.uvr_lib_v5.vr_network.model_param_init import (
+    ModelParameters,
+)
 
 
 class VRSeparator(CommonSeparator):
@@ -214,7 +216,7 @@ class VRSeparator(CommonSeparator):
             f"v_spec stats - min: {np.min(v_spec)}, max: {np.max(v_spec)}, isnan: {np.isnan(v_spec).any()}, isinf: {np.isinf(v_spec).any()}"
         )
 
-        # Not yet implemented from UVR features:
+        # Not yet implemented from tabs.plugins.installed.UVR.uvr features:
         #
         # if not self.is_vocal_split_model:
         #     self.cache_source((y_spec, v_spec))
@@ -301,7 +303,7 @@ class VRSeparator(CommonSeparator):
             )
             output_files.append(self.secondary_stem_output_path)
 
-        # Not yet implemented from UVR features:
+        # Not yet implemented from tabs.plugins.installed.UVR.uvr features:
         # self.process_vocal_split_chain(secondary_sources)
         # self.logger.debug("Vocal split chain processed.")
 
