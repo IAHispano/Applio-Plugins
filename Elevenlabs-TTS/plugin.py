@@ -17,6 +17,7 @@ now_dir = os.getcwd()
 sys.path.append(now_dir)
 
 from rvc.infer.infer import VoiceConverter
+voice_converter = VoiceConverter()
 
 model_root = os.path.join(now_dir, "logs")
 model_root_relative = os.path.relpath(model_root, now_dir)
@@ -163,7 +164,7 @@ def run_tts_script(
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
-    VoiceConverter.infer_pipeline(
+    voice_converter.infer_pipeline(
         pitch,
         filter_radius,
         index_rate,
@@ -319,7 +320,7 @@ def applio_plugin():
                 interactive=True,
             )
             clean_strength = gr.Slider(
-                minimumum=0,
+                minimum=0,
                 maximum=1,
                 label=i18n("Clean Strength"),
                 info=i18n(
@@ -339,7 +340,7 @@ def applio_plugin():
                 interactive=True,
             )
             pitch = gr.Slider(
-                minimumum=-24,
+                minimum=-24,
                 maximum=24,
                 step=1,
                 label=i18n("Pitch"),
@@ -350,7 +351,7 @@ def applio_plugin():
                 interactive=True,
             )
             filter_radius = gr.Slider(
-                minimumum=0,
+                minimum=0,
                 maximum=7,
                 label=i18n("Filter Radius"),
                 info=i18n(
@@ -361,7 +362,7 @@ def applio_plugin():
                 interactive=True,
             )
             index_rate = gr.Slider(
-                minimumum=0,
+                minimum=0,
                 maximum=1,
                 label=i18n("Search Feature Ratio"),
                 info=i18n(
@@ -371,7 +372,7 @@ def applio_plugin():
                 interactive=True,
             )
             rms_mix_rate = gr.Slider(
-                minimumum=0,
+                minimum=0,
                 maximum=1,
                 label=i18n("Volume Envelope"),
                 info=i18n(
@@ -381,7 +382,7 @@ def applio_plugin():
                 interactive=True,
             )
             protect = gr.Slider(
-                minimumum=0,
+                minimum=0,
                 maximum=0.5,
                 label=i18n("Protect Voiceless Consonants"),
                 info=i18n(
@@ -391,7 +392,7 @@ def applio_plugin():
                 interactive=True,
             )
             hop_length = gr.Slider(
-                minimumum=1,
+                minimum=1,
                 maximum=512,
                 step=1,
                 label=i18n("Hop Length"),
