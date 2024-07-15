@@ -1,26 +1,30 @@
-import os, sys
+import os
+import sys
+import random
+
 import gradio as gr
 import regex as re
-import random
-import subprocess
-
-from assets.i18n.i18n import I18nAuto
-
-from elevenlabs.client import ElevenLabs
-from elevenlabs import save
-
-client = ElevenLabs()
-
-i18n = I18nAuto()
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
+from assets.i18n.i18n import I18nAuto
 from rvc.infer.infer import VoiceConverter
+from elevenlabs.client import ElevenLabs
+from elevenlabs import save
+
+client = ElevenLabs()
+i18n = I18nAuto()
 voice_converter = VoiceConverter()
 
 model_root = os.path.join(now_dir, "logs")
 model_root_relative = os.path.relpath(model_root, now_dir)
+custom_embedder_root = os.path.join(
+    now_dir, "rvc", "models", "embedders", "embedders_custom"
+)
+
+os.makedirs(custom_embedder_root, exist_ok=True)
+custom_embedder_root_relative = os.path.relpath(custom_embedder_root, now_dir)
 
 names = [
     os.path.join(root, file)
@@ -117,6 +121,14 @@ def match_index(model_file: str) -> tuple:
     return ""
 
 
+custom_embedders = [
+    os.path.join(dirpath, filename)
+    for dirpath, _, filenames in os.walk(custom_embedder_root_relative)
+    for filename in filenames
+    if filename.endswith(".pt")
+]
+
+
 def process_input(file_path):
     with open(file_path, "r") as file:
         file_contents = file.read()
@@ -144,7 +156,9 @@ def run_tts_script(
     clean_strength,
     export_format,
     embedder_model,
+    embedder_model_custom,
     upscale_audio,
+    f0_file,
     api_key,
 ):
     if os.path.exists(output_tts_path):
@@ -164,25 +178,27 @@ def run_tts_script(
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
-    voice_converter.infer_pipeline(
-        pitch,
-        filter_radius,
-        index_rate,
-        rms_mix_rate,
-        protect,
-        hop_length,
-        f0method,
-        output_tts_path,
-        output_rvc_path,
-        model_file,
-        index_file,
-        split_audio,
-        autotune,
-        clean_audio,
-        clean_strength,
-        export_format,
-        embedder_model,
-        upscale_audio,
+    voice_converter.convert_audio(
+        f0_up_key=pitch,
+        filter_radius=filter_radius,
+        index_rate=index_rate,
+        rms_mix_rate=rms_mix_rate,
+        protect=protect,
+        hop_length=hop_length,
+        f0_method=f0method,
+        audio_input_path=output_tts_path,
+        audio_output_path=output_rvc_path,
+        model_path=model_file,
+        index_path=index_file,
+        split_audio=split_audio,
+        f0_autotune=autotune,
+        clean_audio=clean_audio,
+        clean_strength=clean_strength,
+        export_format=export_format,
+        embedder_model=embedder_model,
+        embedder_model_custom=embedder_model_custom,
+        upscale_audio=upscale_audio,
+        f0_file=f0_file,
     )
 
     return f"Text {tts_text} synthesized successfully.", output_rvc_path.replace(
@@ -427,6 +443,29 @@ def applio_plugin():
                 value="hubert",
                 interactive=True,
             )
+            with gr.Column(visible=False) as embedder_custom:
+                with gr.Accordion(i18n("Custom Embedder"), open=True):
+                    embedder_upload_custom = gr.File(
+                        label=i18n("Upload Custom Embedder"),
+                        type="filepath",
+                        interactive=True,
+                    )
+                    embedder_custom_refresh = gr.Button(i18n("Refresh"))
+                    embedder_model_custom = gr.Dropdown(
+                        label=i18n("Custom Embedder"),
+                        info=i18n(
+                            "Select the custom embedder to use for the conversion."
+                        ),
+                        choices=sorted(custom_embedders),
+                        interactive=True,
+                        allow_custom_value=True,
+                    )
+            f0_file = gr.File(
+                label=i18n(
+                    "The f0 curve represents the variations in the base frequency of a voice over time, showing how pitch rises and falls."
+                ),
+                visible=True,
+            )
 
     convert_button1 = gr.Button(i18n("Convert"))
 
@@ -466,7 +505,9 @@ def applio_plugin():
             clean_strength,
             export_format,
             embedder_model,
+            embedder_model_custom,
             upscale_audio,
+            f0_file,
             api_key,
         ],
         outputs=[vc_output1, vc_output2],
