@@ -1,5 +1,5 @@
 import torch
-
+cpu_device=torch.device("cpu")
 
 class STFT:
     """
@@ -38,6 +38,11 @@ class STFT:
         reshaped_tensor = input_tensor.reshape([-1, time_dim])
 
         # Perform the Short-Time Fourier Transform (STFT) on the reshaped tensor.
+        source_device = reshaped_tensor.device
+        if reshaped_tensor.device.type == "cuda" and torch.cuda.get_device_name(reshaped_tensor.device.index).endswith("[ZLUDA]"):
+            reshaped_tensor = reshaped_tensor.to("cpu")
+            stft_window = stft_window.to("cpu")
+        
         stft_output = torch.stft(
             reshaped_tensor,
             n_fft=self.n_fft,
@@ -45,7 +50,7 @@ class STFT:
             window=stft_window,
             center=True,
             return_complex=False,
-        )
+        ).to(source_device)
 
         # Rearrange the dimensions of the STFT output to bring the frequency dimension forward.
         permuted_stft_output = stft_output.permute([0, 3, 1, 2])
@@ -148,13 +153,18 @@ class STFT:
         )
 
         # Perform the Inverse Short-Time Fourier Transform (ISTFT).
+        source_device = complex_tensor.device
+        if complex_tensor.device.type == "cuda" and torch.cuda.get_device_name(complex_tensor.device.index).endswith("[ZLUDA]"):
+            complex_tensor = complex_tensor.device.to("cpu")
+            stft_window = stft_window.to(cpu_device)
+        
         istft_result = torch.istft(
             complex_tensor,
             n_fft=self.n_fft,
             hop_length=self.hop_length,
             window=stft_window,
             center=True,
-        )
+        ).to(source_device)
 
         # Reshape ISTFT result to restore original batch and channel dimensions.
         final_output = istft_result.reshape([*batch_dimensions, 2, -1])
