@@ -179,10 +179,10 @@ def run_tts_script(
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
     voice_converter.convert_audio(
-        f0_up_key=pitch,
+        pitch=pitch,
         filter_radius=filter_radius,
         index_rate=index_rate,
-        rms_mix_rate=rms_mix_rate,
+        volume_envelope=rms_mix_rate,
         protect=protect,
         hop_length=hop_length,
         f0_method=f0method,
@@ -195,10 +195,10 @@ def run_tts_script(
         clean_audio=clean_audio,
         clean_strength=clean_strength,
         export_format=export_format,
-        embedder_model=embedder_model,
-        embedder_model_custom=embedder_model_custom,
         upscale_audio=upscale_audio,
         f0_file=f0_file,
+        embedder_model=embedder_model,
+        embedder_model_custom=embedder_model_custom,
     )
 
     return f"Text {tts_text} synthesized successfully.", output_rvc_path.replace(
