@@ -178,27 +178,31 @@ def run_tts_script(
 
     print(f"TTS with {tts_voice} completed. Output TTS file: '{output_tts_path}'")
 
+    kwargs = {
+        "audio_input_path": output_tts_path,
+        "audio_output_path": output_rvc_path,
+        "model_path": model_file,
+        "index_path": index_file,
+        "pitch": pitch,
+        "filter_radius": filter_radius,
+        "index_rate": index_rate,
+        "volume_envelope": rms_mix_rate,
+        "protect": protect,
+        "hop_length": hop_length,
+        "f0_method": f0method,
+        "split_audio": split_audio,
+        "f0_autotune": autotune,
+        "clean_audio": clean_audio,
+        "clean_strength": clean_strength,
+        "export_format": export_format,
+        "upscale_audio": upscale_audio,
+        "f0_file": f0_file,
+        "embedder_model": embedder_model,
+        "embedder_model_custom": embedder_model_custom,
+    }
+
     voice_converter.convert_audio(
-        pitch=pitch,
-        filter_radius=filter_radius,
-        index_rate=index_rate,
-        volume_envelope=rms_mix_rate,
-        protect=protect,
-        hop_length=hop_length,
-        f0_method=f0method,
-        audio_input_path=output_tts_path,
-        audio_output_path=output_rvc_path,
-        model_path=model_file,
-        index_path=index_file,
-        split_audio=split_audio,
-        f0_autotune=autotune,
-        clean_audio=clean_audio,
-        clean_strength=clean_strength,
-        export_format=export_format,
-        upscale_audio=upscale_audio,
-        f0_file=f0_file,
-        embedder_model=embedder_model,
-        embedder_model_custom=embedder_model_custom,
+        **kwargs,
     )
 
     return f"Text {tts_text} synthesized successfully.", output_rvc_path.replace(
