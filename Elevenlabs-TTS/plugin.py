@@ -16,125 +16,27 @@ from elevenlabs import save
 client = ElevenLabs()
 i18n = I18nAuto()
 voice_converter = VoiceConverter()
-
-model_root = os.path.join(now_dir, "logs")
-model_root_relative = os.path.relpath(model_root, now_dir)
-custom_embedder_root = os.path.join(
-    now_dir, "rvc", "models", "embedders", "embedders_custom"
+from tabs.inference.inference import (
+    change_choices,
+    create_folder_and_move_files,
+    get_indexes,
+    get_speakers_id,
+    match_index,
+    refresh_embedders_folders,
+    extract_model_and_epoch,
+    names,
+    default_weight,
 )
 
-os.makedirs(custom_embedder_root, exist_ok=True)
-custom_embedder_root_relative = os.path.relpath(custom_embedder_root, now_dir)
-
-names = [
-    os.path.join(root, file)
-    for root, _, files in os.walk(model_root_relative, topdown=False)
-    for file in files
-    if (
-        file.endswith((".pth", ".onnx"))
-        and not (file.startswith("G_") or file.startswith("D_"))
-    )
-]
-
-indexes_list = [
-    os.path.join(root, name)
-    for root, _, files in os.walk(model_root_relative, topdown=False)
-    for name in files
-    if name.endswith(".index") and "trained" not in name
-]
-
-
-def change_choices():
-    names = [
-        os.path.join(root, file)
-        for root, _, files in os.walk(model_root_relative, topdown=False)
-        for file in files
-        if (
-            file.endswith((".pth", ".onnx"))
-            and not (file.startswith("G_") or file.startswith("D_"))
-        )
-    ]
-
-    indexes_list = [
-        os.path.join(root, name)
-        for root, _, files in os.walk(model_root_relative, topdown=False)
-        for name in files
-        if name.endswith(".index") and "trained" not in name
-    ]
-    return (
-        {"choices": sorted(names), "__type__": "update"},
-        {"choices": sorted(indexes_list), "__type__": "update"},
-    )
-
-
-def get_indexes():
-    indexes_list = [
-        os.path.join(dirpath, filename)
-        for dirpath, _, filenames in os.walk(model_root_relative)
-        for filename in filenames
-        if filename.endswith(".index") and "trained" not in filename
-    ]
-
-    return indexes_list if indexes_list else ""
-
-
-def match_index(model_file: str) -> tuple:
-    model_files_trip = re.sub(r"\.pth|\.onnx$", "", model_file)
-    model_file_name = os.path.split(model_files_trip)[-1]
-
-    if re.match(r".+_e\d+_s\d+$", model_file_name):
-        base_model_name = model_file_name.rsplit("_", 2)[0]
-    else:
-        base_model_name = model_file_name
-
-    sid_directory = os.path.join(model_root_relative, base_model_name)
-    directories_to_search = [sid_directory] if os.path.exists(sid_directory) else []
-    directories_to_search.append(model_root_relative)
-    matching_index_files = []
-
-    for directory in directories_to_search:
-        for filename in os.listdir(directory):
-            if filename.endswith(".index") and "trained" not in filename:
-                name_match = any(
-                    name.lower() in filename.lower()
-                    for name in [model_file_name, base_model_name]
-                )
-
-                folder_match = directory == sid_directory
-
-                if name_match or folder_match:
-                    index_path = os.path.join(directory, filename)
-                    updated_indexes_list = get_indexes()
-                    if index_path in updated_indexes_list:
-                        matching_index_files.append(
-                            (
-                                index_path,
-                                os.path.getsize(index_path),
-                                " " not in filename,
-                            )
-                        )
-    if matching_index_files:
-        matching_index_files.sort(key=lambda x: (-x[2], -x[1]))
-        best_match_index_path = matching_index_files[0][0]
-        return best_match_index_path
-
-    return ""
-
-
-custom_embedders = [
-    os.path.join(dirpath, filename)
-    for dirpath, _, filenames in os.walk(custom_embedder_root_relative)
-    for filename in filenames
-    if filename.endswith(".pt")
-]
-
-
 def process_input(file_path):
-    with open(file_path, "r") as file:
-        file_contents = file.read()
-    gr.Info(f"The text from the txt file has been loaded!")
-    return file_contents, None
-
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            file.read()
+        gr.Info(f"The file has been loaded!")
+        return file_path, file_path
+    except UnicodeDecodeError:
+        gr.Info(f"The file has to be in UTF-8 encoding.")
+        return None, None
 
 def run_tts_script(
     tts_text,
@@ -152,6 +54,7 @@ def run_tts_script(
     index_file,
     split_audio,
     autotune,
+    autotune_strength,
     clean_audio,
     clean_strength,
     export_format,
@@ -160,6 +63,7 @@ def run_tts_script(
     upscale_audio,
     f0_file,
     api_key,
+    sid,
 ):
     if os.path.exists(output_tts_path):
         os.remove(output_tts_path)
@@ -171,8 +75,8 @@ def run_tts_script(
     else:
         client = ElevenLabs()
 
-    tts = client.generate(
-        text=tts_text, voice=tts_voice, model="eleven_multilingual_v2"
+    tts = client.text_to_speech.convert(
+        text=tts_text, voice_id=tts_voice, model_id="eleven_multilingual_v2"
     )
     save(tts, output_tts_path)
 
@@ -192,6 +96,7 @@ def run_tts_script(
         "f0_method": f0method,
         "split_audio": split_audio,
         "f0_autotune": autotune,
+        "f0_autotune_strength": autotune_strength,
         "clean_audio": clean_audio,
         "clean_strength": clean_strength,
         "export_format": export_format,
@@ -199,6 +104,7 @@ def run_tts_script(
         "f0_file": f0_file,
         "embedder_model": embedder_model,
         "embedder_model_custom": embedder_model_custom,
+        "sid": sid,
     }
 
     voice_converter.convert_audio(
@@ -218,13 +124,12 @@ def applio_plugin():
     Languages supported by the model: Chinese, Korean, Dutch, Turkish, Swedish, Indonesian, Filipino, Japanese, Ukrainian, Greek, Czech, Finnish, Romanian, Russian, Danish, Bulgarian, Malay, Slovak, Croatian, Classic Arabic, Tamil, English, Polish, German, Spanish, French, Italian, Hindi and Portuguese.
     """
     )
-    default_weight = random.choice(names) if names else ""
     with gr.Row():
         with gr.Row():
             model_file = gr.Dropdown(
                 label=i18n("Voice Model"),
                 info=i18n("Select the voice model to use for the conversion."),
-                choices=sorted(names, key=lambda path: os.path.getsize(path)),
+                choices=sorted(names, key=lambda x: extract_model_and_epoch(x)),
                 interactive=True,
                 value=default_weight,
                 allow_custom_value=True,
@@ -243,21 +148,25 @@ def applio_plugin():
             unload_button = gr.Button(i18n("Unload Voice"))
 
             unload_button.click(
-                fn=lambda: ({"value": "", "__type__": "update"}),
+                fn=lambda: (
+                    {"value": "", "__type__": "update"},
+                    {"value": "", "__type__": "update"},
+                ),
                 inputs=[],
-                outputs=[model_file],
+                outputs=[model_file, index_file],
             )
 
             model_file.select(
-                fn=match_index,
+                fn=lambda model_file_value: match_index(model_file_value),
                 inputs=[model_file],
                 outputs=[index_file],
             )
 
     response = client.voices.get_all()
+    voice_names = []
     if hasattr(response, "voices") and isinstance(response.voices, list):
         voices_list = response.voices
-        voice_names = [voice.name for voice in voices_list]
+        voice_names = [(voice.name, voice.voice_id) for voice in voices_list]
     else:
         print("Unexpected response format or missing data.")
 
@@ -277,13 +186,13 @@ def applio_plugin():
     )
 
     api_key = gr.Textbox(
-        label=i18n("Optional API Key"),
+        label=i18n("API Key"),
         placeholder=i18n(
-            "Enter your API key (This is necessary if you make a lot of requests)"
+            "Enter your API key"
         ),
         value="",
         interactive=True,
-        info="If you use this feature too much, make sure to grab an API key from ElevenLabs. Simply visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/text-to-speech#authentication",
+        info="To obtain an ElevenLabs API key, visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/authentication",
     )
 
     txt_file = gr.File(
@@ -312,6 +221,13 @@ def applio_plugin():
                 value="WAV",
                 interactive=True,
             )
+            sid = gr.Dropdown(
+                label=i18n("Speaker ID"),
+                info=i18n("Select the speaker ID to use for the conversion."),
+                choices=get_speakers_id(model_file.value),
+                value=0,
+                interactive=True,
+            )
             split_audio = gr.Checkbox(
                 label=i18n("Split Audio"),
                 info=i18n(
@@ -328,6 +244,17 @@ def applio_plugin():
                 ),
                 visible=False,
                 value=False,
+                interactive=True,
+            )
+            autotune_strength = gr.Slider(
+                minimum=0,
+                maximum=1,
+                label=i18n("Autotune Strength"),
+                info=i18n(
+                    "Set the autotune strength - the more you increase it the more it will snap to the chromatic grid."
+                ),
+                visible=False,
+                value=1,
                 interactive=True,
             )
             clean_audio = gr.Checkbox(
@@ -428,9 +355,6 @@ def applio_plugin():
                     "Pitch extraction algorithm to use for the audio conversion. The default algorithm is rmvpe, which is recommended for most cases."
                 ),
                 choices=[
-                    "pm",
-                    "harvest",
-                    "dio",
                     "crepe",
                     "crepe-tiny",
                     "rmvpe",
@@ -443,26 +367,42 @@ def applio_plugin():
             embedder_model = gr.Radio(
                 label=i18n("Embedder Model"),
                 info=i18n("Model used for learning speaker embedding."),
-                choices=["hubert", "contentvec"],
-                value="hubert",
+                choices=[
+                    "contentvec",
+                    "chinese-hubert-base",
+                    "japanese-hubert-base",
+                    "korean-hubert-base",
+                    "custom",
+                ],
+                value="contentvec",
                 interactive=True,
             )
             with gr.Column(visible=False) as embedder_custom:
                 with gr.Accordion(i18n("Custom Embedder"), open=True):
-                    embedder_upload_custom = gr.File(
-                        label=i18n("Upload Custom Embedder"),
-                        type="filepath",
-                        interactive=True,
+                    with gr.Row():
+                        embedder_model_custom = gr.Dropdown(
+                            label=i18n("Select Custom Embedder"),
+                            choices=refresh_embedders_folders(),
+                            interactive=True,
+                            allow_custom_value=True,
+                        )
+                        refresh_embedders_button = gr.Button(i18n("Refresh embedders"))
+                    folder_name_input = gr.Textbox(
+                        label=i18n("Folder Name"), interactive=True
                     )
-                    embedder_custom_refresh = gr.Button(i18n("Refresh"))
-                    embedder_model_custom = gr.Dropdown(
-                        label=i18n("Custom Embedder"),
-                        info=i18n(
-                            "Select the custom embedder to use for the conversion."
-                        ),
-                        choices=sorted(custom_embedders),
-                        interactive=True,
-                        allow_custom_value=True,
+                    with gr.Row():
+                        bin_file_upload = gr.File(
+                            label=i18n("Upload .bin"),
+                            type="filepath",
+                            interactive=True,
+                        )
+                        config_file_upload = gr.File(
+                            label=i18n("Upload .json"),
+                            type="filepath",
+                            interactive=True,
+                        )
+                    move_files_button = gr.Button(
+                        i18n("Move files to custom embedder folder")
                     )
             f0_file = gr.File(
                 label=i18n(
@@ -471,25 +411,72 @@ def applio_plugin():
                 visible=True,
             )
 
+    def enforce_terms(terms_accepted, *args):
+        if not terms_accepted:
+            message = "You must agree to the Terms of Use to proceed."
+            gr.Info(message)
+            return message, None
+        return run_tts_script(*args)
+
+    terms_checkbox = gr.Checkbox(
+        label=i18n("I agree to the terms of use"),
+        info=i18n(
+            "Please ensure compliance with the terms and conditions detailed in [this document](https://github.com/IAHispano/Applio/blob/main/TERMS_OF_USE.md) before proceeding with your inference."
+        ),
+        value=False,
+        interactive=True,
+    )
     convert_button1 = gr.Button(i18n("Convert"))
 
     with gr.Row():
         vc_output1 = gr.Textbox(label=i18n("Output Information"))
         vc_output2 = gr.Audio(label=i18n("Export Audio"))
+    def toggle_visible(checkbox):
+        return {"visible": checkbox, "__type__": "update"}
 
+    def toggle_visible_embedder_custom(embedder_model):
+        if embedder_model == "custom":
+            return {"visible": True, "__type__": "update"}
+        return {"visible": False, "__type__": "update"}
+    autotune.change(
+        fn=toggle_visible,
+        inputs=[autotune],
+        outputs=[autotune_strength],
+    )
+    clean_audio.change(
+        fn=toggle_visible,
+        inputs=[clean_audio],
+        outputs=[clean_strength],
+    )
     refresh_button.click(
         fn=change_choices,
-        inputs=[],
-        outputs=[model_file, index_file],
+        inputs=[model_file],
+        outputs=[model_file, index_file, sid, sid],
     )
     txt_file.upload(
         fn=process_input,
         inputs=[txt_file],
         outputs=[tts_text, txt_file],
     )
+    embedder_model.change(
+        fn=toggle_visible_embedder_custom,
+        inputs=[embedder_model],
+        outputs=[embedder_custom],
+    )
+    move_files_button.click(
+        fn=create_folder_and_move_files,
+        inputs=[folder_name_input, bin_file_upload, config_file_upload],
+        outputs=[],
+    )
+    refresh_embedders_button.click(
+        fn=lambda: gr.update(choices=refresh_embedders_folders()),
+        inputs=[],
+        outputs=[embedder_model_custom],
+    )
     convert_button1.click(
-        fn=run_tts_script,
+        fn=enforce_terms,
         inputs=[
+            terms_checkbox,
             tts_text,
             tts_voice,
             pitch,
@@ -505,6 +492,7 @@ def applio_plugin():
             index_file,
             split_audio,
             autotune,
+            autotune_strength,
             clean_audio,
             clean_strength,
             export_format,
@@ -513,6 +501,7 @@ def applio_plugin():
             upscale_audio,
             f0_file,
             api_key,
+            sid,
         ],
         outputs=[vc_output1, vc_output2],
     )
