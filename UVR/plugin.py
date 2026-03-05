@@ -26,7 +26,8 @@ def get_models_by_type(arch_type):
 
 
 def run_uvr(
-    audio,
+    audio_path,
+    audio_upload,
     output_format,
     output_bitrate,
     output_dir,
@@ -69,6 +70,10 @@ def run_uvr(
     demucs_segments_enabled,
     tab_selected,
 ):
+    audio = audio_path if audio_path and audio_path.strip() != "" else audio_upload
+    if not audio:
+        raise gr.Error("No audio provided. Please upload a file or provide a path.")
+
     if tab_selected == "VR":
         model = vr_model
     elif tab_selected == "MDX":
@@ -141,12 +146,16 @@ def run_uvr(
 
 
 def applio_plugin():
-    audio = gr.Audio(
-        label="Input audio",
+    audio_upload = gr.Audio(
+        label="Upload audio",
         sources=["upload", "microphone"],
         type="filepath",
         interactive=True,
     )
+    audio_path = gr.Textbox(
+        label="Input audio path", placeholder="Paste path here...", interactive=True
+    )
+
     single_stem = gr.Radio(
         label="Single stem",
         choices=[
@@ -298,9 +307,11 @@ def applio_plugin():
                     value=1,
                     interactive=True,
                 )
-                mdx_segment_size = gr.Textbox(
+                mdx_segment_size = gr.Dropdown(
                     label="Segment size",
+                    choices=[128, 256, 512, 1024],
                     value=256,
+                    allow_custom_value=True,
                     interactive=True,
                 )
                 mdx_hop_length = gr.Textbox(
@@ -335,9 +346,11 @@ def applio_plugin():
                     value=1,
                     interactive=True,
                 )
-                mdxc_segment_size = gr.Textbox(
+                mdxc_segment_size = gr.Dropdown(
                     label="Segment size",
+                    choices=[128, 256, 512],
                     value=256,
+                    allow_custom_value=True,
                     interactive=True,
                 )
                 mdxc_pitch_shift = gr.Textbox(
@@ -366,9 +379,11 @@ def applio_plugin():
                 interactive=True,
             )
             with gr.Row():
-                demucs_segment_size = gr.Textbox(
+                demucs_segment_size = gr.Dropdown(
                     label="Segment size",
+                    choices=["Default", 128, 256],
                     value="Default",
+                    allow_custom_value=True,
                     interactive=True,
                 )
                 demucs_shifts = gr.Textbox(
@@ -395,7 +410,8 @@ def applio_plugin():
     run_uvr_button.click(
         fn=run_uvr,
         inputs=[
-            audio,
+            audio_path,
+            audio_upload,
             output_format,
             output_bitrate,
             output_dir,
