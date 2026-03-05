@@ -1,57 +1,44 @@
-import os, sys
-import json
+import os
+
 import gradio as gr
+from audio_separator.separator import Separator
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-
-from tabs.plugins.installed.UVR.uvr import Separator
-
-plugin_folder = os.path.relpath(
-    os.path.join(now_dir, "tabs", "plugins", "installed", "UVR")
-)
+plugin_folder = os.path.dirname(os.path.abspath(__file__))
+models_folder = os.path.join(os.getcwd(), "rvc", "models", "uvr")
+audios_folder = os.path.join(os.getcwd(), "assets", "audios", "uvr")
 
 
-def get_models_by_type(type):
-    download_checks_path = os.path.join(plugin_folder, "models", "download_checks.json")
-
-    model_downloads_list = json.load(open(download_checks_path, encoding="utf-8"))
-
-    filtered_demucs_v4 = {
-        key: value
-        for key, value in model_downloads_list["demucs_download_list"].items()
-        if key.startswith("Demucs v4")
-    }
-
-    model_files_grouped_by_type = {
-        "VR": model_downloads_list["vr_download_list"],
-        "MDX": {
-            **model_downloads_list["mdx_download_list"],
-            **model_downloads_list["mdx_download_vip_list"],
-        },
-        "Demucs": filtered_demucs_v4,
-        "MDXC": {
-            **model_downloads_list["mdx23c_download_list"],
-            **model_downloads_list["mdx23c_download_vip_list"],
-            **model_downloads_list["roformer_download_list"],
-        },
-    }
-
-    results = []
-    for model_name, model_info in model_files_grouped_by_type[type].items():
-        results.append(model_info)
-
-    return results
+def get_models_by_type(arch_type):
+    try:
+        separator = Separator(
+            info_only=True,
+            model_file_dir=models_folder,
+        )
+        all_models = separator.list_supported_model_files()
+        models_for_arch = all_models.get(arch_type, {})
+        return [
+            info["filename"]
+            for info in models_for_arch.values()
+            if info.get("filename")
+        ]
+    except Exception:
+        return []
 
 
 def run_uvr(
     audio,
     output_format,
+    output_bitrate,
     output_dir,
     invert_spect,
     normalization,
+    amplification,
     single_stem,
     sample_rate,
+    chunk_duration,
+    use_autocast,
+    use_soundfile,
+    # VR
     vr_model,
     vr_batch_size,
     vr_window_size,
@@ -60,23 +47,26 @@ def run_uvr(
     vr_high_end_process,
     vr_enable_post_process,
     vr_post_process_threshold,
+    # MDX
     mdx_model,
     mdx_segment_size,
     mdx_overlap,
     mdx_batch_size,
     mdx_hop_length,
     mdx_enable_denoise,
+    # MDXC
     mdxc_model,
     mdxc_segment_size,
     mdxc_override_model_segment_size,
     mdxc_overlap,
     mdxc_batch_size,
     mdxc_pitch_shift,
-    # demucs_model,
-    # demucs_segment_size,
-    # demucs_shifts,
-    # demucs_overlap,
-    # demucs_segments_enabled,
+    # Demucs
+    demucs_model,
+    demucs_segment_size,
+    demucs_shifts,
+    demucs_overlap,
+    demucs_segments_enabled,
     tab_selected,
 ):
     if tab_selected == "VR":
@@ -85,27 +75,32 @@ def run_uvr(
         model = mdx_model
     elif tab_selected == "MDXC":
         model = mdxc_model
-    # elif tab_selected == "Demucs":
-    #     model = demucs_model
+    elif tab_selected == "Demucs":
+        model = demucs_model
+    else:
+        model = vr_model
 
-    if single_stem == "None":
+    if not model:
+        raise gr.Error("No model selected. Please choose a model before running.")
+
+    if single_stem == "All Stems (Default)":
         single_stem = None
 
+    os.makedirs(output_dir, exist_ok=True)
+
     separator = Separator(
-        model_file_dir=os.path.join(plugin_folder, "models"),
+        model_file_dir=models_folder,
         output_dir=output_dir,
         output_format=output_format,
+        output_bitrate=output_bitrate if output_bitrate.strip() != "" else None,
         normalization_threshold=float(normalization),
+        amplification_threshold=float(amplification),
         output_single_stem=single_stem,
         invert_using_spec=invert_spect,
         sample_rate=int(sample_rate),
-        mdx_params={
-            "hop_length": int(mdx_hop_length),
-            "segment_size": int(mdx_segment_size),
-            "overlap": float(mdx_overlap),
-            "batch_size": int(mdx_batch_size),
-            "enable_denoise": mdx_enable_denoise,
-        },
+        chunk_duration=int(chunk_duration) if int(chunk_duration) > 0 else None,
+        use_autocast=use_autocast,
+        use_soundfile=use_soundfile,
         vr_params={
             "batch_size": int(vr_batch_size),
             "window_size": int(vr_window_size),
@@ -115,6 +110,13 @@ def run_uvr(
             "post_process_threshold": float(vr_post_process_threshold),
             "high_end_process": vr_high_end_process,
         },
+        mdx_params={
+            "hop_length": int(mdx_hop_length),
+            "segment_size": int(mdx_segment_size),
+            "overlap": float(mdx_overlap),
+            "batch_size": int(mdx_batch_size),
+            "enable_denoise": mdx_enable_denoise,
+        },
         mdxc_params={
             "segment_size": int(mdxc_segment_size),
             "batch_size": int(mdxc_batch_size),
@@ -122,26 +124,20 @@ def run_uvr(
             "override_model_segment_size": mdxc_override_model_segment_size,
             "pitch_shift": int(mdxc_pitch_shift),
         },
+        demucs_params={
+            "segment_size": int(demucs_segment_size)
+            if str(demucs_segment_size).lower() != "default"
+            else "Default",
+            "shifts": int(demucs_shifts),
+            "overlap": float(demucs_overlap),
+            "segments_enabled": demucs_segments_enabled,
+        },
     )
-    """
-    demucs_params={
-        "segment_size": demucs_segment_size,
-        "shifts": demucs_shifts,
-        "overlap": demucs_overlap,
-        "segments_enabled": demucs_segments_enabled,
-    },
-    """
-    separator.load_model(model_filename=model)
 
-    results = []
-    files = separator.separate(audio)
-    try:
-        for file in files:
-            file_path = os.path.join(output_dir, file)
-            results.append(file_path)
-        return results
-    except AttributeError:
-        return os.path.join(output_dir, files)
+    separator.load_model(model_filename=model)
+    output_filenames = separator.separate(audio)
+
+    return [os.path.join(output_dir, f) for f in output_filenames]
 
 
 def applio_plugin():
@@ -151,11 +147,10 @@ def applio_plugin():
         type="filepath",
         interactive=True,
     )
-
     single_stem = gr.Radio(
         label="Single stem",
         choices=[
-            "None",
+            "All Stems (Default)",
             "Instrumental",
             "Vocals",
             "Drums",
@@ -164,40 +159,65 @@ def applio_plugin():
             "Piano",
             "Other",
         ],
-        value="None",
+        value="All Stems (Default)",
         interactive=True,
     )
 
     with gr.Accordion("Advanced Settings", open=False):
-        invert_spect = gr.Checkbox(
-            label="Invert spectrogram",
-            value=False,
-            interactive=True,
-        )
+        with gr.Row():
+            invert_spect = gr.Checkbox(
+                label="Invert spectrogram",
+                value=False,
+                interactive=True,
+            )
+            use_autocast = gr.Checkbox(
+                label="Use Autocast (PyTorch)",
+                value=False,
+                interactive=True,
+            )
+            use_soundfile = gr.Checkbox(
+                label="Use Soundfile",
+                value=False,
+                interactive=True,
+            )
 
-        output_format = gr.Radio(
+        output_format = gr.Dropdown(
             label="Output format",
-            choices=["wav", "mp3"],
-            value="wav",
+            choices=["WAV", "FLAC", "MP3", "M4A", "OGG", "OPUS", "AIFF", "AC3"],
+            value="WAV",
             interactive=True,
         )
-
+        output_bitrate = gr.Textbox(
+            label="Output bitrate (e.g. 320k)",
+            value="",
+            placeholder="Leave blank for default",
+            interactive=True,
+        )
         output_dir = gr.Textbox(
             label="Output directory",
-            value=os.path.join(plugin_folder, "output"),
+            value=audios_folder,
             interactive=True,
         )
-
         with gr.Row():
             sample_rate = gr.Textbox(
                 label="Sample rate",
                 value=44100,
                 interactive=True,
             )
-
+            chunk_duration = gr.Textbox(
+                label="Chunk duration (s) [0 = disabled]",
+                value=0,
+                interactive=True,
+            )
+        with gr.Row():
             normalization = gr.Textbox(
                 label="Normalization",
                 value=0.9,
+                interactive=True,
+            )
+            amplification = gr.Textbox(
+                label="Amplification",
+                value=0.0,
                 interactive=True,
             )
 
@@ -265,14 +285,13 @@ def applio_plugin():
                 value=False,
                 interactive=True,
             )
-            with gr.Row():
-                mdx_overlap = gr.Slider(
-                    label="Overlap",
-                    minimum=0.001,
-                    maximum=0.999,
-                    value=0.25,
-                    interactive=True,
-                )
+            mdx_overlap = gr.Slider(
+                label="Overlap",
+                minimum=0.001,
+                maximum=0.999,
+                value=0.25,
+                interactive=True,
+            )
             with gr.Row():
                 mdx_batch_size = gr.Textbox(
                     label="Batch size",
@@ -300,15 +319,16 @@ def applio_plugin():
             mdxc_override_model_segment_size = gr.Checkbox(
                 label="Override model segment size",
                 value=False,
+                interactive=True,
             )
-            with gr.Row():
-                mdxc_overlap = gr.Slider(
-                    label="Overlap",
-                    minimum=0.001,
-                    maximum=0.999,
-                    value=0.25,
-                    interactive=True,
-                )
+            mdxc_overlap = gr.Slider(
+                label="Overlap",
+                minimum=2,
+                maximum=50,
+                step=1,
+                value=8,
+                interactive=True,
+            )
             with gr.Row():
                 mdxc_batch_size = gr.Textbox(
                     label="Batch size",
@@ -321,14 +341,12 @@ def applio_plugin():
                     interactive=True,
                 )
                 mdxc_pitch_shift = gr.Textbox(
-                    label="Hop length",
+                    label="Pitch shift (semitones)",
                     value=0,
                     interactive=True,
                 )
 
     with gr.Tab("Demucs") as demucs_tab:
-        gr.Markdown("Demucs is not available in this version of the plugin.")
-        """
         demucs_model = gr.Dropdown(
             label="Model",
             choices=get_models_by_type("Demucs"),
@@ -339,7 +357,7 @@ def applio_plugin():
                 label="Segments enabled",
                 value=True,
                 interactive=True,
-            )    
+            )
             demucs_overlap = gr.Slider(
                 label="Overlap",
                 minimum=0.001,
@@ -358,7 +376,6 @@ def applio_plugin():
                     value=2,
                     interactive=True,
                 )
-        """
 
     tab_selected = gr.Textbox(
         label="Tab selected",
@@ -369,7 +386,10 @@ def applio_plugin():
 
     run_uvr_button = gr.Button("Run")
     output_files = gr.File(
-        label="Output files", file_count="multiple", type="filepath", interactive=False
+        label="Output files",
+        file_count="multiple",
+        type="filepath",
+        interactive=False,
     )
 
     run_uvr_button.click(
@@ -377,11 +397,16 @@ def applio_plugin():
         inputs=[
             audio,
             output_format,
+            output_bitrate,
             output_dir,
             invert_spect,
             normalization,
+            amplification,
             single_stem,
             sample_rate,
+            chunk_duration,
+            use_autocast,
+            use_soundfile,
             vr_model,
             vr_batch_size,
             vr_window_size,
@@ -402,11 +427,11 @@ def applio_plugin():
             mdxc_overlap,
             mdxc_batch_size,
             mdxc_pitch_shift,
-            # demucs_model,
-            # demucs_segment_size,
-            # demucs_shifts,
-            # demucs_overlap,
-            # demucs_segments_enabled,
+            demucs_model,
+            demucs_segment_size,
+            demucs_shifts,
+            demucs_overlap,
+            demucs_segments_enabled,
             tab_selected,
         ],
         outputs=output_files,
