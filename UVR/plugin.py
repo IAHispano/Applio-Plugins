@@ -138,10 +138,8 @@ def run_uvr(
             "segments_enabled": demucs_segments_enabled,
         },
     )
-
     separator.load_model(model_filename=model)
     output_filenames = separator.separate(audio)
-
     return [os.path.join(output_dir, f) for f in output_filenames]
 
 
@@ -153,11 +151,14 @@ def applio_plugin():
         interactive=True,
     )
     audio_path = gr.Textbox(
-        label="Input audio path", placeholder="Paste path here...", interactive=True
+        label="Input audio path",
+        placeholder="Paste path here...",
+        interactive=True,
     )
 
     single_stem = gr.Radio(
         label="Single stem",
+        info="Extract specific stem. 'All Stems' outputs all stems supported by the selected model.",
         choices=[
             "All Stems (Default)",
             "Instrumental",
@@ -176,16 +177,19 @@ def applio_plugin():
         with gr.Row():
             invert_spect = gr.Checkbox(
                 label="Invert spectrogram",
+                info="Inverts secondary stem using spectrogram-based processing instead of waveform. Slightly slower but may improve quality.",
                 value=False,
                 interactive=True,
             )
             use_autocast = gr.Checkbox(
                 label="Use Autocast (PyTorch)",
+                info="Uses mixed precision (FP16) to speed up GPU inference.",
                 value=False,
                 interactive=True,
             )
             use_soundfile = gr.Checkbox(
                 label="Use Soundfile",
+                info="Uses Soundfile library for audio writing; prevents OOM errors on long files.",
                 value=False,
                 interactive=True,
             )
@@ -198,34 +202,40 @@ def applio_plugin():
         )
         output_bitrate = gr.Textbox(
             label="Output bitrate (e.g. 320k)",
+            info="Target bitrate for lossy formats (e.g., 320k, 256k). Leave blank for default.",
             value="",
             placeholder="Leave blank for default",
             interactive=True,
         )
         output_dir = gr.Textbox(
             label="Output directory",
+            info="Folder path where separated stem files will be saved.",
             value=audios_folder,
             interactive=True,
         )
         with gr.Row():
             sample_rate = gr.Textbox(
                 label="Sample rate",
+                info="Output audio sample rate in Hz. Default: 44100.",
                 value=44100,
                 interactive=True,
             )
             chunk_duration = gr.Textbox(
                 label="Chunk duration (s) [0 = disabled]",
+                info="Splits long audio into segments to prevent OOM errors. 0 = disabled.",
                 value=0,
                 interactive=True,
             )
         with gr.Row():
             normalization = gr.Textbox(
                 label="Normalization",
+                info="Max peak threshold (0-1) to normalize input/output audio and prevent clipping.",
                 value=0.9,
                 interactive=True,
             )
             amplification = gr.Textbox(
                 label="Amplification",
+                info="Min peak threshold (0-1) to amplify input/output audio if below this level.",
                 value=0.0,
                 interactive=True,
             )
@@ -239,22 +249,26 @@ def applio_plugin():
         with gr.Accordion("Settings", open=False):
             vr_enable_tta = gr.Checkbox(
                 label="Enable TTA",
+                info="Test-Time-Augmentation. Multiple inference passes for better quality (slower).",
                 value=False,
                 interactive=True,
             )
             vr_high_end_process = gr.Checkbox(
                 label="High-end process",
+                info="Mirrors missing high-frequency range in output.",
                 value=False,
                 interactive=True,
             )
             vr_enable_post_process = gr.Checkbox(
                 label="Enable post-process",
+                info="Removes residual instrumental artifacts from vocal stems.",
                 value=False,
                 interactive=True,
             )
             with gr.Row():
                 vr_aggression = gr.Slider(
                     label="Aggression",
+                    info="Higher = deeper extraction. Default: 5. Values >5 may muddy non-vocal models.",
                     minimum=-100,
                     maximum=100,
                     value=5,
@@ -262,6 +276,7 @@ def applio_plugin():
                 )
                 vr_post_process_threshold = gr.Slider(
                     label="Post-process threshold",
+                    info="Higher removes more artifacts but may increase bleed.",
                     minimum=0.1,
                     maximum=0.3,
                     step=0.01,
@@ -271,11 +286,13 @@ def applio_plugin():
             with gr.Row():
                 vr_batch_size = gr.Textbox(
                     label="Batch size",
+                    info="Higher = more RAM usage, slightly faster.",
                     value=4,
                     interactive=True,
                 )
                 vr_window_size = gr.Dropdown(
                     label="Window size",
+                    info="320 = higher quality/slower, 512 = balanced, 1024 = faster/lower quality.",
                     choices=[1024, 512, 320],
                     value=512,
                     interactive=True,
@@ -291,11 +308,13 @@ def applio_plugin():
         with gr.Accordion("Settings", open=False):
             mdx_enable_denoise = gr.Checkbox(
                 label="Enable denoise",
+                info="Reduces residual noise from separation process.",
                 value=False,
                 interactive=True,
             )
             mdx_overlap = gr.Slider(
                 label="Overlap",
+                info="Higher = better quality/slower.",
                 minimum=0.001,
                 maximum=0.999,
                 value=0.25,
@@ -304,11 +323,13 @@ def applio_plugin():
             with gr.Row():
                 mdx_batch_size = gr.Textbox(
                     label="Batch size",
+                    info="Higher = more VRAM usage, slightly faster.",
                     value=1,
                     interactive=True,
                 )
                 mdx_segment_size = gr.Dropdown(
                     label="Segment size",
+                    info="Larger = more VRAM, potentially better results.",
                     choices=[128, 256, 512, 1024],
                     value=256,
                     allow_custom_value=True,
@@ -316,6 +337,7 @@ def applio_plugin():
                 )
                 mdx_hop_length = gr.Textbox(
                     label="Hop length",
+                    info="Modifies frequency analysis granularity.",
                     value=1024,
                     interactive=True,
                 )
@@ -329,11 +351,13 @@ def applio_plugin():
         with gr.Accordion("Settings", open=False):
             mdxc_override_model_segment_size = gr.Checkbox(
                 label="Override model segment size",
+                info="Forces manual segment size instead of model default.",
                 value=False,
                 interactive=True,
             )
             mdxc_overlap = gr.Slider(
                 label="Overlap",
+                info="Higher = better quality/slower.",
                 minimum=2,
                 maximum=50,
                 step=1,
@@ -343,11 +367,13 @@ def applio_plugin():
             with gr.Row():
                 mdxc_batch_size = gr.Textbox(
                     label="Batch size",
+                    info="Higher = more VRAM usage, slightly faster.",
                     value=1,
                     interactive=True,
                 )
                 mdxc_segment_size = gr.Dropdown(
                     label="Segment size",
+                    info="Higher captures longer patterns, increases memory.",
                     choices=[128, 256, 512],
                     value=256,
                     allow_custom_value=True,
@@ -355,6 +381,7 @@ def applio_plugin():
                 )
                 mdxc_pitch_shift = gr.Textbox(
                     label="Pitch shift (semitones)",
+                    info="Shifts audio pitch by semitones to aid stem detection.",
                     value=0,
                     interactive=True,
                 )
@@ -368,11 +395,13 @@ def applio_plugin():
         with gr.Accordion("Settings", open=False):
             demucs_segments_enabled = gr.Checkbox(
                 label="Segments enabled",
+                info="Enables segment-wise processing for long audio files.",
                 value=True,
                 interactive=True,
             )
             demucs_overlap = gr.Slider(
                 label="Overlap",
+                info="Higher = better quality/slower.",
                 minimum=0.001,
                 maximum=0.999,
                 value=0.25,
@@ -381,6 +410,7 @@ def applio_plugin():
             with gr.Row():
                 demucs_segment_size = gr.Dropdown(
                     label="Segment size",
+                    info="Larger = better quality/slower. 'Default' recommended.",
                     choices=["Default", 128, 256],
                     value="Default",
                     allow_custom_value=True,
@@ -388,6 +418,7 @@ def applio_plugin():
                 )
                 demucs_shifts = gr.Textbox(
                     label="Shifts",
+                    info="Number of predictions with random shifts. Higher = better quality, significantly slower.",
                     value=2,
                     interactive=True,
                 )
