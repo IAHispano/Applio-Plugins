@@ -1,9 +1,7 @@
 import os
 import sys
-import random
 
 import gradio as gr
-import regex as re
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -17,15 +15,13 @@ client = ElevenLabs()
 i18n = I18nAuto()
 voice_converter = VoiceConverter()
 from tabs.inference.inference import (
-    change_choices,
     create_folder_and_move_files,
-    get_indexes,
+    default_weight,
+    extract_model_and_epoch,
+    get_files,
     get_speakers_id,
     match_index,
     refresh_embedders_folders,
-    extract_model_and_epoch,
-    names,
-    default_weight,
 )
 
 def process_input(file_path):
@@ -41,6 +37,7 @@ def process_input(file_path):
 def run_tts_script(
     tts_text,
     tts_voice,
+    tts_model,
     pitch,
     filter_radius,
     index_rate,
@@ -76,7 +73,7 @@ def run_tts_script(
         client = ElevenLabs()
 
     tts = client.text_to_speech.convert(
-        text=tts_text, voice_id=tts_voice, model_id="eleven_multilingual_v2"
+        text=tts_text, voice_id=tts_voice, model_id=tts_model
     )
     save(tts, output_tts_path)
 
@@ -116,6 +113,23 @@ def run_tts_script(
     )
 
 
+def change_choices(model):
+    models_list = get_files("model")
+    indexes_list = sorted(get_files("index"))
+    if model:
+        speakers = get_speakers_id(model)
+    else:
+        speakers = [0]
+
+    return (
+        {
+            "choices": sorted(models_list, key=extract_model_and_epoch),
+            "__type__": "update",
+        },
+        {"choices": sorted(indexes_list), "__type__": "update"},
+        {"choices": sorted(speakers), "__type__": "update"},
+    )
+
 def applio_plugin():
     gr.Markdown(
         """
@@ -129,7 +143,7 @@ def applio_plugin():
             model_file = gr.Dropdown(
                 label=i18n("Voice Model"),
                 info=i18n("Select the voice model to use for the conversion."),
-                choices=sorted(names, key=lambda x: extract_model_and_epoch(x)),
+                choices=sorted(get_files("model"), key=extract_model_and_epoch),
                 interactive=True,
                 value=default_weight,
                 allow_custom_value=True,
@@ -138,7 +152,7 @@ def applio_plugin():
             index_file = gr.Dropdown(
                 label=i18n("Index File"),
                 info=i18n("Select the index file to use for the conversion."),
-                choices=get_indexes(),
+                choices=sorted(get_files("index")),
                 value=best_default_index_path,
                 interactive=True,
                 allow_custom_value=True,
@@ -170,13 +184,26 @@ def applio_plugin():
     else:
         print("Unexpected response format or missing data.")
 
-    tts_voice = gr.Dropdown(
-        label=i18n("TTS Voices"),
-        info=i18n("Select the TTS voice to use for the conversion."),
-        choices=voice_names,
-        interactive=True,
-        value=None,
-    )
+    with gr.Row():
+        tts_voice = gr.Dropdown(
+            label=i18n("TTS Voices"),
+            info=i18n("Select the TTS voice to use for the conversion."),
+            choices=voice_names,
+            interactive=True,
+            value=None,
+        )
+        tts_model = gr.Dropdown(
+            label=i18n("TTS Model"),
+            info=i18n("Select the ElevenLabs model to use."),
+            choices=[
+                "eleven_v3",
+                "eleven_multilingual_v2",
+                "eleven_flash_v2_5",
+                "eleven_turbo_v2_5",
+            ],
+            interactive=True,
+            value="eleven_multilingual_v2",
+        )
 
     tts_text = gr.Textbox(
         label=i18n("Text to Synthesize"),
@@ -187,9 +214,7 @@ def applio_plugin():
 
     api_key = gr.Textbox(
         label=i18n("API Key"),
-        placeholder=i18n(
-            "Enter your API key"
-        ),
+        placeholder=i18n("Enter your API key"),
         value="",
         interactive=True,
         info="To obtain an ElevenLabs API key, visit https://elevenlabs.com/ to get yours. Need help? Check out this link: https://elevenlabs.io/docs/api-reference/authentication",
@@ -359,7 +384,6 @@ def applio_plugin():
                     "crepe-tiny",
                     "rmvpe",
                     "fcpe",
-                    "hybrid[rmvpe+fcpe]",
                 ],
                 value="rmvpe",
                 interactive=True,
@@ -369,6 +393,8 @@ def applio_plugin():
                 info=i18n("Model used for learning speaker embedding."),
                 choices=[
                     "contentvec",
+                    "spin",
+                    "spin-v2",
                     "chinese-hubert-base",
                     "japanese-hubert-base",
                     "korean-hubert-base",
@@ -451,7 +477,7 @@ def applio_plugin():
     refresh_button.click(
         fn=change_choices,
         inputs=[model_file],
-        outputs=[model_file, index_file, sid, sid],
+        outputs=[model_file, index_file, sid],
     )
     txt_file.upload(
         fn=process_input,
@@ -479,6 +505,7 @@ def applio_plugin():
             terms_checkbox,
             tts_text,
             tts_voice,
+            tts_model,
             pitch,
             filter_radius,
             index_rate,
